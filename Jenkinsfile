@@ -52,7 +52,7 @@ pipeline {
                 withCredentials([file(credentialsId: env.SECRET_FILE_ID, variable: 'SPRING_CONFIG_FILE')]) {
                     sh """
                         echo "[INFO] Using secret file: $SPRING_CONFIG_FILE"
-                        cp \$SPRING_CONFIG_FILE ./application-prod.properties
+                        cp \$SPRING_CONFIG_FILE ./application-prd.properties
                     """
                 }
             }
@@ -65,7 +65,7 @@ pipeline {
                         ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ${REMOTE_USER}@${REMOTE_HOST} "mkdir -p ${REMOTE_DIR}"
                         scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
                             ${JAR_FILE_NAME} \
-                            application-prod.properties \
+                            application-prd.properties \
                             Dockerfile \
                             ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_DIR}/
                     """
@@ -81,9 +81,9 @@ pipeline {
 ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ${REMOTE_USER}@${REMOTE_HOST} << ENDSSH
     cd ${REMOTE_DIR} || exit 1
     docker rm -f ${CONTAINER_NAME} || true
-    docker build --build-arg PROFILE=prod -t ${DOCKER_IMAGE} .
+    docker build --build-arg PROFILE=prd -t ${DOCKER_IMAGE} .
     docker run -d --name ${CONTAINER_NAME} -p ${PORT}:${PORT} \
-        -e SPRING_PROFILES_ACTIVE=prod \
+        -e SPRING_PROFILES_ACTIVE=prd \
         ${DOCKER_IMAGE}
 ENDSSH
                     """
