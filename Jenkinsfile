@@ -44,5 +44,34 @@ pipeline {
                 echo 'Preparing JAR...(JAR 준비 완료!)'
             }
         }
+
+        stage('Copy to Remote Server') {
+            steps {
+                // 빌드된 JAR 파일을 원격 서버로 복사
+                sshagent (credentials: [env.SSH_CREDENTIALS_ID]) {
+                    // 원격 서버에 디렉토리가 없으면 생성하고 JAR 파일 복사
+                    sh "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ${REMOTE_USER}@${REMOTE_HOST} \"mkdir -p ${REMOTE_DIR}\""
+                    sh "scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ${JAR_FILE_NAME} Dockerfile ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_DIR}/"
+                }
+                echo 'Copying JAR to Remote Server...(원격 서버로 JAR 복사 완료!)'
+            }
+        }
+
+        stage('Remote Docker Build & Deploy') {
+            steps {
+                // 원격 서버에서 도커 이미지 빌드 및 컨테이너 실행
+                sshagent (credentials: [env.SSH_CREDENTIALS_ID]) {
+                    sh """
+                        ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ${REMOTE_USER}@${REMOTE_HOST} << ENDSSH
+                            cd ${REMOTE_DIR} || exit 1
+                            docker rm -f ${CONTAINER_NAME} || true
+                            docker build -t ${DOCKER_IMAGE} .
+                            docker run -d --name ${CONTAINER_NAME} -p ${PORT}:${PORT} ${DOCKER_IMAGE}
+                        ENDSSH
+                    """
+                }
+                echo 'Remote Docker Build & Deploy...(원격 도커 빌드 및 배포 완료!)'
+            }
+        }
     }
 }
